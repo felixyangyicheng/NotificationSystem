@@ -8,17 +8,40 @@
 
 <MudContainer>
     
-    <p>@currentUserMgsList.Count()</p>
+    <MudBadge Content="@currentUserMgsList.Count()" Color="Color.Error" Overlap="true" Class="mx-6 my-4">
+        <MudIcon Icon="@Icons.Material.Filled.Email" Color="Color.Default" />
+    </MudBadge>
     <MudButton OnClick="NotificationHideShow">Hide/Show</MudButton>
-    <h3>Notifications </h3>
+    <h3>Notifications:@currentUserMgsList.Count() </h3>
     @foreach (var item in currentUserMgsList)
     {
-        
+        <p>@item.MsgId</p>
+        <p>@item.SenderName</p>
+        <p>@item.ReceiverName</p>
+        <p>@item.MsgTitle</p>
+        <p>@item.MsgBody</p>
+        <p>@item.MsgDateSt</p>
     }
 
 </MudContainer>
 @*================Notification Part=======================*@
 
+
+@*========================Sending Message part======================*@
+<br />
+<br />
+Sender Name :
+<MudTextField @bind-Value="notificationMessage.SenderName" ></MudTextField>
+Receiver Name :
+<MudTextField @bind-Value="notificationMessage.ReceiverName" ></MudTextField>
+Message :
+<MudTextField @bind-Value="notificationMessage.MsgTitle"></MudTextField>
+<br />
+<MudTextField @bind-Value="notificationMessage.MsgBody"></MudTextField>
+<br />
+<br />
+<MudButton OnClick="Send" Disabled="@(!IsConnected)">Send msg</MudButton>
+@*========================Sending Message part======================*@
 
 @code {
     private List<NotificationMessage> allNOtificationMgs = new List<NotificationMessage>();
@@ -41,11 +64,11 @@
             });
 
             currentUserMgsList = allNOtificationMgs.Where(x => x.SenderName !=notificationMessage.SenderName).ToList();
-            StateHasChanged();
+            InvokeAsync(StateHasChanged);
         });
         await hubConnection.StartAsync();
     }
-    private async Task Sned()
+    private async Task Send()
     {
         await hubConnection.SendAsync("sendMessage", notificationMessage.SenderName
                                                    , notificationMessage.ReceiverName
