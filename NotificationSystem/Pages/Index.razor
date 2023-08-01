@@ -1,0 +1,67 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using NotificationSystem.Data
+
+@inject NavigationManager _nav
+
+@*================Notification Part=======================*@
+
+<MudContainer>
+    
+    <p>@currentUserMgsList.Count()</p>
+    <MudButton OnClick="NotificationHideShow">Hide/Show</MudButton>
+    <h3>Notifications </h3>
+    @foreach (var item in currentUserMgsList)
+    {
+        
+    }
+
+</MudContainer>
+@*================Notification Part=======================*@
+
+
+@code {
+    private List<NotificationMessage> allNOtificationMgs = new List<NotificationMessage>();
+    private List<NotificationMessage> currentUserMgsList = new List<NotificationMessage>();
+    private NotificationMessage notificationMessage = new NotificationMessage();
+    private HubConnection hubConnection;
+    private string BoxCss = "none";
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder().WithUrl(_nav.ToAbsoluteUri("/chatHub")).Build();
+        hubConnection.On<string, string, string, string>("ReceiveMessage", (senderName, receiverName, title, message) =>
+        {
+            allNOtificationMgs.Add(new NotificationMessage()
+            {
+                MsgId = allNOtificationMgs.Count() + 1,
+                SenderName = senderName,
+                ReceiverName = receiverName,
+                MsgTitle=title,
+                MsgBody=message
+            });
+
+            currentUserMgsList = allNOtificationMgs.Where(x => x.SenderName !=notificationMessage.SenderName).ToList();
+            StateHasChanged();
+        });
+        await hubConnection.StartAsync();
+    }
+    private async Task Sned()
+    {
+        await hubConnection.SendAsync("sendMessage", notificationMessage.SenderName
+                                                   , notificationMessage.ReceiverName
+                                                   , notificationMessage.MsgTitle
+                                                   , notificationMessage.MsgBody);
+        notificationMessage.MsgTitle = "";
+        notificationMessage.MsgBody = "";
+
+    }
+    public bool IsConnected => hubConnection.State == HubConnectionState.Connected;
+    private void NotificationHideShow()
+    {
+        if (BoxCss == "none") BoxCss = "block";
+        else BoxCss = "none";
+
+
+    }
+}
+
