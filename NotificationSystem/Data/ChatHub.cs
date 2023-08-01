@@ -7,9 +7,9 @@ namespace NotificationSystem.Data
     {
 
 
-        public async Task SendMessage(string sender, string receiver, string msgTitle, string msgBody) 
+        public async Task SendMessage(string sender, string receiver, string msgTitle, string msgBody, bool isRead) 
         {
-            await Clients.All.SendAsync("ReceiveMessage", sender, receiver, msgTitle, msgBody);
+            await Clients.All.SendAsync("ReceiveMessage", sender, receiver, msgTitle, msgBody, isRead);
         }
     }
 }

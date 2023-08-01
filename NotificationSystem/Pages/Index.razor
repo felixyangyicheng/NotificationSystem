@@ -7,21 +7,47 @@
 @*================Notification Part=======================*@
 
 <MudContainer>
-    
-    <MudBadge Content="@currentUserMgsList.Count()" Color="Color.Error" Overlap="true" Class="mx-6 my-4">
+    <MudBadge Color="@(IsConnected?Color.Surface:Color.Error)" Overlap="true" Class="mx-6 my-4">
+        @if (IsConnected)
+        {
+            <MudIcon Icon="@Icons.Material.Filled.ConnectedTv" Color="Color.Success" />
+
+        }
+        else
+        {
+            <MudIcon Icon="@Icons.Material.Filled.DisabledByDefault" Color="Color.Error" />
+        }
+    </MudBadge>
+    <MudBadge Content="@allNotificationMgs.Count()" Color="Color.Error" Overlap="true" Class="mx-6 my-4">
         <MudIcon Icon="@Icons.Material.Filled.Email" Color="Color.Default" />
     </MudBadge>
     <MudButton OnClick="NotificationHideShow">Hide/Show</MudButton>
-    <h3>Notifications:@currentUserMgsList.Count() </h3>
-    @foreach (var item in currentUserMgsList)
-    {
-        <p>@item.MsgId</p>
-        <p>@item.SenderName</p>
-        <p>@item.ReceiverName</p>
-        <p>@item.MsgTitle</p>
-        <p>@item.MsgBody</p>
-        <p>@item.MsgDateSt</p>
-    }
+    <h3>Notifications:@allNotificationMgs.Count() </h3>
+    <div id="another_unique_identifier" class="ma-0" style="height:300px;overflow: auto;">
+        <MudPaper Elevation="0" Height="3500px" Class="d-flex flex-column justify-startpy-6">
+            @foreach (var item in allNotificationMgs)
+            {
+                <MudPaper Elevation="2" >
+                    <MudText Typo="Typo.body1" Align="Align.Center">@item.MsgId</MudText>
+                    <MudText Typo="Typo.body1" Align="Align.Center">@item.SenderName</MudText>
+                    <MudText Typo="Typo.body1" Align="Align.Center">@item.ReceiverName</MudText>
+                    <MudText Typo="Typo.body1" Align="Align.Center">@item.MsgTitle</MudText>
+                    <MudTextField Variant="Variant.Outlined" onfocus="@(async()=>await ChangeReadState(item))"
+                        ReadOnly @bind-Value="item.MsgBody"></MudTextField>
+                    <MudText Typo="Typo.body1" Align="Align.Center">@item.MsgDateSt</MudText>
+                    <MudTextField Variant="Variant.Outlined"
+                             Disabled ReadOnly @bind-Value="item.IsRead"></MudTextField>
+                </MudPaper>
+
+            }
+
+            <MudScrollToTop TopOffset="100" Selector="#another_unique_identifier" Style="z-index:2001;">
+                <div class="mud-theme-secondary px-3 py-6 mud-elevation-16 rounded-xl fixed" style="bottom:20px;left:20px;">Scroll to top</div>
+            </MudScrollToTop>
+        </MudPaper>
+    </div>
+
+
 
 </MudContainer>
 @*================Notification Part=======================*@
@@ -31,49 +57,60 @@
 <br />
 <br />
 Sender Name :
-<MudTextField @bind-Value="notificationMessage.SenderName" ></MudTextField>
+<MudTextField Variant="Variant.Outlined" ReadOnly @bind-Value="notificationMessage.SenderName" ></MudTextField>
 Receiver Name :
-<MudTextField @bind-Value="notificationMessage.ReceiverName" ></MudTextField>
+<MudTextField Variant="Variant.Outlined"  @bind-Value="notificationMessage.ReceiverName"></MudTextField>
 Message :
-<MudTextField @bind-Value="notificationMessage.MsgTitle"></MudTextField>
+<MudTextField Variant="Variant.Outlined" @bind-Value="notificationMessage.MsgTitle"></MudTextField>
 <br />
-<MudTextField @bind-Value="notificationMessage.MsgBody"></MudTextField>
+<MudTextField Variant="Variant.Outlined" @bind-Value="notificationMessage.MsgBody" Lines="5"></MudTextField>
 <br />
 <br />
-<MudButton OnClick="Send" Disabled="@(!IsConnected)">Send msg</MudButton>
+<MudButton OnClick="Send" Color="Color.Primary" Disabled="@(!IsConnected)">Send msg</MudButton>
 @*========================Sending Message part======================*@
 
 @code {
-    private List<NotificationMessage> allNOtificationMgs = new List<NotificationMessage>();
+    private List<NotificationMessage> allNotificationMgs = new List<NotificationMessage>();
     private List<NotificationMessage> currentUserMgsList = new List<NotificationMessage>();
+    private List<NotificationMessage> currentUserUnreadMgs= new List<NotificationMessage>();
     private NotificationMessage notificationMessage = new NotificationMessage();
     private HubConnection hubConnection;
     private string BoxCss = "none";
     protected override async Task OnInitializedAsync()
     {
+        notificationMessage.SenderName = new string(Guid.NewGuid().ToString().Take(4).ToArray());
         hubConnection = new HubConnectionBuilder().WithUrl(_nav.ToAbsoluteUri("/chatHub")).Build();
-        hubConnection.On<string, string, string, string>("ReceiveMessage", (senderName, receiverName, title, message) =>
+        hubConnection.On<string, string, string, string, bool>("ReceiveMessage", (senderName, receiverName, title, message, read) =>
         {
-            allNOtificationMgs.Add(new NotificationMessage()
+            allNotificationMgs.Add(new NotificationMessage()
             {
-                MsgId = allNOtificationMgs.Count() + 1,
+                    MsgId = allNotificationMgs.Count() + 1,
                 SenderName = senderName,
                 ReceiverName = receiverName,
                 MsgTitle=title,
-                MsgBody=message
+                    MsgBody = message,
+                    IsRead = false
             });
 
-            currentUserMgsList = allNOtificationMgs.Where(x => x.SenderName !=notificationMessage.SenderName).ToList();
+            currentUserMgsList = allNotificationMgs
+            //.Where(x => x.SenderName !=notificationMessage.SenderName)
+            .ToList();
             InvokeAsync(StateHasChanged);
         });
         await hubConnection.StartAsync();
+    }
+    private async Task ChangeReadState(NotificationMessage notif)
+    {
+        notif.IsRead = true;
+        InvokeAsync(StateHasChanged);
     }
     private async Task Send()
     {
         await hubConnection.SendAsync("sendMessage", notificationMessage.SenderName
                                                    , notificationMessage.ReceiverName
                                                    , notificationMessage.MsgTitle
-                                                   , notificationMessage.MsgBody);
+                                                   , notificationMessage.MsgBody
+                                                   , notificationMessage.IsRead);
         notificationMessage.MsgTitle = "";
         notificationMessage.MsgBody = "";
 

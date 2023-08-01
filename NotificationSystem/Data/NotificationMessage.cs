@@ -8,7 +8,8 @@
         public string MsgTitle { get; set; } = "";
         public string MsgBody { get; set; } = "";
         public DateTime MsgDate { get; set; } = DateTime.Now;
-        public string  MsgDateSt => this.MsgDate.ToString("dd-MM-yyyy");
+        public string  MsgDateSt => this.MsgDate.ToString("F");
+        public bool IsRead { get; set; } = false;
 
     }
 }
